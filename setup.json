@@ -1,0 +1,11 @@
+{
+    "dataset": {
+        "description": "(required) Full description of the dataset.",
+        "title": "(required) Title of the dataset.",
+        "slug": "(required) The dataset permalink identifier."
+    },
+    "resources": {
+        "title": "(required) Title of the resource.",
+        "type": "(required) Type of resource (documentation, api, code, ...)."
+    }
+}
