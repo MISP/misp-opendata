@@ -6,15 +6,29 @@ from pymisp import ExpandedPyMISP, MISPAttribute, MISPEvent, MISPObject
 _API_URL = 'https://data.public.lu/api/1/'
 
 
+################################################################################
+#                              UTILITY FUNCTIONS                               #
+################################################################################
+
+def _check_auth_fields(auth):
+    with open(auth, 'rt', encoding='utf-8') as f:
+        headers = json.loads(f.read())
+    if 'Content-type' not in headers:
+        headers['Content-type'] = 'application/json'
+    return headers
+
+
 def _check_resources_fields(body, resources, url):
     if 'filetype' not in resources:
         resources['filetype'] = 'remote'
-    print(body)
     resources['format'] = body['returnFormat']
     misp_url = url if url.endswith('/') else f'{url}/'
     resources['url'] = f"{misp_url}{args.level}/restSearch/{'/'.join(f'{key}:{value}' for key, value in body.items())}"
-    print(resources['url'])
 
+
+################################################################################
+#                          SPECIFIC PARSING FUNCTIONS                          #
+################################################################################
 
 def _create_dataset(auth, body, dataset, resources, misp_url, url):
     print('Create dataset:')
@@ -22,13 +36,8 @@ def _create_dataset(auth, body, dataset, resources, misp_url, url):
         dataset['frequency'] = 'unknown'
     _check_resources_fields(body, resources, misp_url)
     dataset['resources'] = [resources]
-    with open(auth, 'rt', encoding='utf-8') as f:
-        headers = json.loads(f.read())
-    if 'Content-type' not in headers:
-        headers['Content-type'] = 'application/json'
-    oui = requests.post(f'{_API_URL}datasets', headers=headers, data=dataset)
-    print(oui.status_code)
-    print(oui.text)
+    headers = _check_auth_fields(auth)
+    response = requests.post(f'{_API_URL}datasets/', headers=headers, data=dataset)
 
 
 def _delete_dataset(auth, dataset):
@@ -49,11 +58,17 @@ def _delete_resources(auth, dataset, resources):
 
 
 def _update_resources(auth, body, dataset, resources, misp_url, url):
-    print('Update resources:')
+    _check_resources_fields(body, resources, misp_url)
     print(dataset)
     print(resources)
+    headers = _check_auth_fields(auth)
     print(url)
+    response = requests.post(f'{url}/resources', headers=headers, data={'payload': resources})
+ 
 
+################################################################################
+#                            MAIN PARSING FUNCTIONS                            #
+################################################################################
 
 def delete_data(auth, to_delete):
     if len(to_delete) == 1:
@@ -80,19 +95,21 @@ def submit_data(args):
         return
     # for feature, values in setup.items():
     #     locals()[feature] = values
-    required_dataset_fields = ('id', 'slug')
+    required_dataset_fields = ('title', 'description')
     required_resources_fields = ('title', 'type')
     for feature in ('dataset', 'resources'):
         if not any(required in setup[feature] for required in locals()[f'required_{feature}_fields']):
             print(f'Please make sure the {feature} you want to create/update contains at least one of the 2 required fields: {", ".join(locals()[f"required_{feature}_fields"])}')
             return
-    url = f'{_API_URL}datasets/{setup["dataset"]["slug" if "slug" in setup["dataset"] else "id"]}'
+    slug = '-'.join(setup['dataset']['title'].lower().split(' '))
+    url = f'{_API_URL}datasets/{slug}'
     dataset = requests.get(url)
-    print(dataset.status_code)
     if dataset.status_code == 200:
-        _update_resources(args.auth, body, dataset, setup['resources'], args.url, url)
+        _update_resources(args.auth, body, slug, setup['resources'], args.url, url)
     else:
-        _create_dataset(args.auth, body, setup['dataset'], setup['resources'], args.url, url)
+        dataset = setup['dataset']
+        dataset['slug'] = slug
+        _create_dataset(args.auth, body, dataset, setup['resources'], args.url, url)
 
 
 if __name__ == '__main__':
