@@ -26,6 +26,14 @@ def _check_resources_fields(body, resources, url):
     resources['url'] = f"{misp_url}{args.level}/restSearch/{'/'.join(f'{key}:{value}' for key, value in body.items())}"
 
 
+def _send_delete_request(headers, to_delete, to_display):
+    delete = requests.delete(f'{_API_URL}datasets/{to_delete}', headers=headers)
+    if delete.status_code == 204:
+        print(f'The dataset {to_display} has been deleted from the open data portal.')
+    else:
+        print(f'The dataset {to_display} has not been deleted. Status code: {delete.status_code} - {delete.text}')
+
+
 ################################################################################
 #                          SPECIFIC PARSING FUNCTIONS                          #
 ################################################################################
@@ -43,18 +51,26 @@ def _create_dataset(auth, body, dataset, resources, misp_url, url):
 def _delete_dataset(auth, dataset):
     with open(auth, 'rt', encoding='utf-8') as f:
         headers = json.loads(f.read())
-    delete = requests.delete(f'{_API_URL}datasets/{dataset}', headers=headers)
-    if delete.status_code == 204:
-        print(f'The dataset {dataset} has been deleted from the open data portal.')
-    else:
-        print(f'The dataset {dataset} has not been deleted. Status code: {delete.status_code} - {delete.text}')
+    _send_delete_request(headers, dataset, dataset)
 
 
-def _delete_resources(auth, dataset, resources):
-    print(auth)
-    print(dataset)
-    print(resources)
-    return
+def _delete_resources(auth, dataset_name, resources):
+    with open(auth, 'rt', encoding='utf-8') as f:
+        headers = json.loads(f.read())
+    dataset = requests.get(f'{_API_URL}datasets/{dataset_name}')
+    if dataset.status_code != 200:
+        print(f'The dataset {dataset_name} you want to delete has not been found. Status code: {delete.status_code} - {delete.text}')
+        return
+    dataset = dataset.json()
+    current_resources = (resource['title'] for resource in dataset['resources'])
+    for resource in resources:
+        if resource not in current_resources:
+            print(f'The resource {resource} does not exist in the dataset {dataset_name}.')
+            break
+        for dataset_resource in dataset['resources']:
+            if resource == dataset_resource['title']:
+                _send_delete_request(headers, f'{dataset_name}/resources/{dataset_resource["id"]}', dataset_name)
+                break
 
 
 def _update_resources(auth, body, dataset, resources, misp_url, url):
