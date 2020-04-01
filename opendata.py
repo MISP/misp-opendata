@@ -18,12 +18,18 @@ def _check_auth_fields(auth):
     return headers
 
 
+def _fill_url(key, value):
+    if isinstance(value, list):
+        return '/'.join(f'{key}:{val}' for val in value)
+    return f'{key}:{value}'
+
+
 def _check_resources_fields(body, resources, url):
     if 'filetype' not in resources:
         resources['filetype'] = 'remote'
     resources['format'] = body['returnFormat']
     misp_url = url if url.endswith('/') else f'{url}/'
-    resources['url'] = f"{misp_url}{args.level}/restSearch/{'/'.join(f'{key}:{value}' for key, value in body.items())}"
+    resources['url'] = f"{misp_url}{args.level}/restSearch/{'/'.join(_fill_url(key, value) for key, value in body.items())}"
 
 
 def _send_delete_request(headers, to_delete, to_display):
