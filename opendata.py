@@ -32,6 +32,12 @@ def _check_resources_fields(body, resources, url):
     resources['url'] = f"{misp_url}{args.level}/restSearch/{'/'.join(_fill_url(key, value) for key, value in body.items())}"
 
 
+def _get_resource_id(resources, title):
+    for resource in resources:
+        if resource['title'] == title:
+            return resource['id']
+
+
 def _send_delete_request(headers, to_delete, to_display):
     delete = requests.delete(f'{_API_URL}datasets/{to_delete}', headers=headers)
     if delete.status_code == 204:
@@ -81,12 +87,13 @@ def _delete_resources(auth, dataset_name, resources):
 
 def _update_resources(auth, body, dataset, resources, misp_url, url):
     _check_resources_fields(body, resources, misp_url)
-    print(dataset)
-    print(resources)
     headers = _check_auth_fields(auth)
-    print(url)
-    response = requests.post(f'{url}/resources', headers=headers, data={'payload': resources})
- 
+    if any(resources['title'] == resource['title'] for resource in dataset['resources']):
+        resource_id = _get_resource_id(dataset['resources'], resources['title'])
+        response = requests.put(f'{url}resources/{resource_id}/', headers=headers, data=resources)
+    else:
+        response = requests.post(f'{url}resources/', headers=headers, data=resources)
+
 
 ################################################################################
 #                            MAIN PARSING FUNCTIONS                            #
@@ -124,10 +131,10 @@ def submit_data(args):
             print(f'Please make sure the {feature} you want to create/update contains at least one of the 2 required fields: {", ".join(locals()[f"required_{feature}_fields"])}')
             return
     slug = '-'.join(setup['dataset']['title'].lower().split(' '))
-    url = f'{_API_URL}datasets/{slug}'
+    url = f'{_API_URL}datasets/{slug}/'
     dataset = requests.get(url)
     if dataset.status_code == 200:
-        _update_resources(args.auth, body, slug, setup['resources'], args.url, url)
+        _update_resources(args.auth, body, dataset.json(), setup['resources'], args.url, url)
     else:
         dataset = setup['dataset']
         dataset['slug'] = slug
