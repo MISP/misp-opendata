@@ -1,9 +1,11 @@
 import argparse
 import json
 import requests
+from datetime import datetime
 from pymisp import ExpandedPyMISP, MISPAttribute, MISPEvent, MISPObject
 
 _API_URL = 'https://data.public.lu/api/1/'
+_DATASET_URL = 'https://data.public.lu/en/datasets/'
 
 
 ################################################################################
@@ -16,6 +18,34 @@ def _check_auth_fields(auth):
     if 'Content-type' not in headers:
         headers['Content-type'] = 'application/json'
     return headers
+
+
+def _check_dataset_fields(dataset: dict):
+    now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
+    dataset.update({key: now for key in ('created_at', 'last_modified', 'last_updated')})
+    slug = dataset['slug']
+    dataset['page'] = f'{_DATASET_URL}{slug}/'
+    dataset['uri'] = f'{_DATASET_URL}datasets/{slug}/'
+
+
+def _create_resource_url(action, response):
+    if action == 'updated':
+        dataset_id, _, resource_id = response.url.split('/')[-4:-1]
+        return f'{_DATASET_URL}{dataset_id}/#resource-{resource_id}', response.url
+    dataset_id = response.url.split('/')[-3]
+    resource_id = response.json()["id"]
+    return f'{_DATASET_URL}{dataset_id}/#resource-{resource_id}', f'{response.url}{resource_id}'
+
+
+def _display_confirmation(action, feature, response):
+    message = f'Your {feature} has been successfully {action}.\n'
+    url, api_url = _create_dataset_url(action, response) if feature == 'dataset' else _create_resource_url(action, response)
+    message = f'{message}It is available under the following link: {url}\n'
+    print(f'{message}You can also find the json format equivalent: {api_url}')
+
+
+def _display_error(response):
+    print(f'Your query encountered an error:\n{response.status_code} - {response.reason} - {response.text}')
 
 
 def _fill_url(key, value):
@@ -59,6 +89,12 @@ def _create_dataset(auth, body, dataset, resources, misp_url, url):
     headers = _check_auth_fields(auth)
     response = requests.post(f'{_API_URL}datasets/', headers=headers, data=dataset)
 
+ 
+def _create_resource(headers, resources, url):
+    print('create resource')
+    response = requests.post(url, headers=headers, json=resources)
+    return response, 'created', 201
+
 
 def _delete_dataset(auth, dataset):
     with open(auth, 'rt', encoding='utf-8') as f:
@@ -85,14 +121,24 @@ def _delete_resources(auth, dataset_name, resources):
                 break
 
 
-def _update_resources(auth, body, dataset, resources, misp_url, url):
+def _update_resource(dataset, headers, resources, url):
+    resource_id = _get_resource_id(dataset['resources'], resources['title'])
+    response = requests.put(f'{url}{resource_id}/', headers=headers, json=resources)
+    return response, 'updated', 200
+
+
+def _update_resources(auth, body, dataset, resources, misp_url):
+    feature = 'resource'
     _check_resources_fields(body, resources, misp_url)
     headers = _check_auth_fields(auth)
-    if any(resources['title'] == resource['title'] for resource in dataset['resources']):
-        resource_id = _get_resource_id(dataset['resources'], resources['title'])
-        response = requests.put(f'{url}resources/{resource_id}/', headers=headers, data=resources)
+    url = f'{_API_URL}datasets/{dataset["id"]}/resources/'
+    match = any(resources['title'] == resource['title'] for resource in dataset['resources'])
+    args = (headers, resources, url)
+    response, action, status = _update_resource(dataset, *args) if match else _create_resource(*args)
+    if response.status_code == status:
+        _display_confirmation(action, feature, response)
     else:
-        response = requests.post(f'{url}resources/', headers=headers, data=resources)
+        _display_error(response)
 
 
 ################################################################################
