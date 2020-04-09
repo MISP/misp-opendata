@@ -28,6 +28,12 @@ def _check_dataset_fields(dataset: dict):
     dataset['uri'] = f'{_DATASET_URL}datasets/{slug}/'
 
 
+def _create_dataset_url(action, response):
+    dataset_id = response.json()['id']
+    api_url  = response.url if action == 'updated' else f'{response.url}{dataset_id}/'
+    return f'{_DATASET_URL}{dataset_id}/', api_url
+
+
 def _create_resource_url(action, response):
     if action == 'updated':
         dataset_id, _, resource_id = response.url.split('/')[-4:-1]
@@ -35,17 +41,6 @@ def _create_resource_url(action, response):
     dataset_id = response.url.split('/')[-3]
     resource_id = response.json()["id"]
     return f'{_DATASET_URL}{dataset_id}/#resource-{resource_id}', f'{response.url}{resource_id}'
-
-
-def _display_confirmation(action, feature, response):
-    message = f'Your {feature} has been successfully {action}.\n'
-    url, api_url = _create_dataset_url(action, response) if feature == 'dataset' else _create_resource_url(action, response)
-    message = f'{message}It is available under the following link: {url}\n'
-    print(f'{message}You can also find the json format equivalent: {api_url}')
-
-
-def _display_error(response):
-    print(f'Your query encountered an error:\n{response.status_code} - {response.reason} - {response.text}')
 
 
 def _fill_url(key, value):
@@ -62,10 +57,28 @@ def _check_resources_fields(body, resources, url):
     resources['url'] = f"{misp_url}{args.level}/restSearch/{'/'.join(_fill_url(key, value) for key, value in body.items())}"
 
 
+def _display_confirmation(action, feature, response):
+    message = f'Your {feature} has been successfully {action}.\n'
+    url, api_url = _create_dataset_url(action, response) if feature == 'dataset' else _create_resource_url(action, response)
+    message = f'{message}It is available under the following link: {url}\n'
+    print(f'{message}You can also find the json format equivalent: {api_url}')
+
+
+def _display_error(response):
+    print(f'Your query encountered an error:\n{response.status_code} - {response.reason} - {response.text}')
+
+
 def _get_resource_id(resources, title):
     for resource in resources:
         if resource['title'] == title:
             return resource['id']
+
+
+def _handle_response(action, feature, response, status_code):
+    if response.status_code == status_code:
+        _display_confirmation(action, feature, response)
+    else:
+        _display_error(response)
 
 
 def _send_delete_request(headers, to_delete, to_display):
@@ -81,15 +94,17 @@ def _send_delete_request(headers, to_delete, to_display):
 ################################################################################
 
 def _create_dataset(auth, body, dataset, resources, misp_url, url):
-    print('Create dataset:')
     if 'frequency' not in dataset:
         dataset['frequency'] = 'unknown'
-    _check_resources_fields(body, resources, misp_url)
-    dataset['resources'] = [resources]
+    _check_dataset_fields(dataset)
+    if resources is not None:
+        _check_resources_fields(body, resources, misp_url)
+        dataset['resources'] = [resources]
     headers = _check_auth_fields(auth)
-    response = requests.post(f'{_API_URL}datasets/', headers=headers, data=dataset)
+    response = requests.post(f'{_API_URL}datasets/', headers=headers, json=dataset)
+    _handle_response('created', 'dataset', response, 201)
 
- 
+
 def _create_resource(headers, resources, url):
     print('create resource')
     response = requests.post(url, headers=headers, json=resources)
@@ -121,6 +136,12 @@ def _delete_resources(auth, dataset_name, resources):
                 break
 
 
+def _update_dataset(auth, dataset, dataset_id):
+    headers = _check_auth_fields(auth)
+    response = requests.put(f'{_API_URL}datasets/{dataset_id}/', headers=headers, json=dataset)
+    _handle_response('updated', 'dataset', response, 200)
+
+
 def _update_resource(dataset, headers, resources, url):
     resource_id = _get_resource_id(dataset['resources'], resources['title'])
     response = requests.put(f'{url}{resource_id}/', headers=headers, json=resources)
@@ -135,10 +156,7 @@ def _update_resources(auth, body, dataset, resources, misp_url):
     match = any(resources['title'] == resource['title'] for resource in dataset['resources'])
     args = (headers, resources, url)
     response, action, status = _update_resource(dataset, *args) if match else _create_resource(*args)
-    if response.status_code == status:
-        _display_confirmation(action, feature, response)
-    else:
-        _display_error(response)
+    _handle_response('updated', 'resource', response, status)
 
 
 ################################################################################
@@ -173,18 +191,24 @@ def submit_data(args):
     required_dataset_fields = ('title', 'description')
     required_resources_fields = ('title', 'type')
     for feature in ('dataset', 'resources'):
-        if not any(required in setup[feature] for required in locals()[f'required_{feature}_fields']):
+        if feature in setup and not any(required in setup[feature] for required in locals()[f'required_{feature}_fields']):
             print(f'Please make sure the {feature} you want to create/update contains at least one of the 2 required fields: {", ".join(locals()[f"required_{feature}_fields"])}')
             return
     slug = '-'.join(setup['dataset']['title'].lower().split(' '))
     url = f'{_API_URL}datasets/{slug}/'
     dataset = requests.get(url)
     if dataset.status_code == 200:
-        _update_resources(args.auth, body, dataset.json(), setup['resources'], args.url, url)
+        if 'resources' in setup:
+            _update_resources(args.auth, body, dataset.json(), setup['resources'], args.url)
+        else:
+            _update_dataset(args.auth, setup['dataset'], dataset.json()['id'])
     else:
         dataset = setup['dataset']
         dataset['slug'] = slug
-        _create_dataset(args.auth, body, dataset, setup['resources'], args.url, url)
+        arguments = [args.auth, body, dataset, args.url]
+        if 'resources' in setup:
+            arguments.append(setup['resources'])
+        _create_dataset(*arguments)
 
 
 if __name__ == '__main__':
