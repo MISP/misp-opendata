@@ -2,7 +2,7 @@ import argparse
 import json
 import requests
 from datetime import datetime
-from pymisp import ExpandedPyMISP, MISPAttribute, MISPEvent, MISPObject
+# from pymisp import ExpandedPyMISP, MISPAttribute, MISPEvent, MISPObject
 
 _API_URL = 'https://data.public.lu/api/1/'
 _DATASET_URL = 'https://data.public.lu/en/datasets/'
@@ -45,7 +45,7 @@ def _create_resource_url(action, response):
 
 def _fill_url(key, value):
     if isinstance(value, list):
-        return '/'.join(f'{key}:{val}' for val in value)
+        return '/'.join(f'{key}[]:{val}' for val in value)
     return f'{key}:{value}'
 
 
@@ -93,7 +93,7 @@ def _send_delete_request(headers, to_delete, to_display):
 #                          SPECIFIC PARSING FUNCTIONS                          #
 ################################################################################
 
-def _create_dataset(auth, body, dataset, resources, misp_url, url):
+def _create_dataset(auth, body, dataset, misp_url, resources):
     if 'frequency' not in dataset:
         dataset['frequency'] = 'unknown'
     _check_dataset_fields(dataset)
