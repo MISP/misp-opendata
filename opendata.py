@@ -1,6 +1,8 @@
 import argparse
 import json
+import pathlib
 import requests
+import sys
 from datetime import datetime
 # from pymisp import ExpandedPyMISP, MISPAttribute, MISPEvent, MISPObject
 
@@ -13,11 +15,9 @@ _DATASET_URL = 'https://data.public.lu/en/datasets/'
 ################################################################################
 
 def _check_auth_fields(auth):
-    with open(auth, 'rt', encoding='utf-8') as f:
-        headers = json.loads(f.read())
-    if 'Content-type' not in headers:
-        headers['Content-type'] = 'application/json'
-    return headers
+    if 'Content-type' not in auth:
+        auth['Content-type'] = 'application/json'
+    return auth
 
 
 def _check_dataset_fields(dataset: dict):
@@ -173,21 +173,7 @@ def delete_data(auth, to_delete):
 
 
 def submit_data(args):
-    recommandation = 'Please make sure the file exists and you have the right to open it.'
-    try:
-        with open(args.body, 'rt', encoding='utf-8') as f:
-            body = json.loads(f.read())
-    except (FileNotFoundError, PermissionError):
-        print(f'The body file specified ({args.body}) cannot be opened. {recommandation}')
-        return
-    try:
-        with open(args.setup, 'rt', encoding='utf-8') as f:
-            setup = json.loads(f.read())
-    except (FileNotFoundError, PermissionError):
-        print(f'The setup file specified ({args.setup}) cannot be opened. {recommandation}')
-        return
-    # for feature, values in setup.items():
-    #     locals()[feature] = values
+    setup = args.setup
     required_dataset_fields = ('title', 'description')
     required_resources_fields = ('title', 'type')
     for feature in ('dataset', 'resources'):
@@ -197,6 +183,7 @@ def submit_data(args):
     slug = '-'.join(setup['dataset']['title'].lower().split(' '))
     url = f'{_API_URL}datasets/{slug}/'
     dataset = requests.get(url)
+    body = args.body
     if dataset.status_code == 200:
         if 'resources' in setup:
             _update_resources(args.auth, body, dataset.json(), setup['resources'], args.url)
@@ -211,16 +198,39 @@ def submit_data(args):
         _create_dataset(*arguments)
 
 
+def _get_authentication(auth):
+    if auth is None:
+        with open(f'{pathlib.Path(__file__).parent.absolute()}/auth.json', 'rt', encoding='utf-8') as f:
+            authentication = json.loads(f.read())
+        return authentication
+    return {"X-API-KEY": auth}
+
+
+def analyse_arguments(args):
+    absolute_path = pathlib.Path(__file__).parent.absolute()
+    recommandation = 'Please make sure the file exists and you have the right to open it.'
+    args.auth = _get_authentication(args.auth)
+    for feature in ('body', 'setup'):
+        filename = getattr(args, feature) if getattr(args, feature) is not None else f'{absolute_path}/{feature}.json'
+        try:
+            with open(filename, 'rt', encoding='utf-8') as f:
+                setattr(args, feature, json.loads(f.read()))
+        except (FileNotFoundError, PermissionError):
+            sys.exit(f'The {feature} file specified ({filename}) cannot be opened. {recommandation}')
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Export a restSearch collection of data as feed.')
     parser.add_argument('--level', default='events', help='Level to query, in order to define the relative path.')
-    parser.add_argument('--body', default='body.json', help='Path to the file containing the body of the query.')
-    parser.add_argument('--setup', default='setup.json', help='Path to the file containing the dataset and resource names.')
+    parser.add_argument('--body', help='Body of the query. (using body.json file if not set)')
+    parser.add_argument('--setup', help='Setup of the query containing the dataset (and resource) name(s). (using setup.json file if not set)')
     parser.add_argument('--url', default='https://misppriv.circl.lu', help='Url of the MISP instance.')
-    parser.add_argument('--auth', default='auth.json', help='Path to the file containing the authentication required for the opendata portal (API key)')
+    parser.add_argument('--auth', help='Authentication required for the opendata portal (API key). (using auth.json file if not set)')
     parser.add_argument('-d', '--delete', nargs='+', help='Delete a specific dataset or some ressources for a dataset')
     args = parser.parse_args()
     if args.delete:
-        delete_data(args.auth, args.delete)
+        authentication = _get_authentication(args.auth)
+        delete_data(authentication, args.delete)
     else:
+        analyse_arguments(args)
         submit_data(args)
