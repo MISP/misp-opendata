@@ -89,12 +89,12 @@ def _handle_response(action, feature, response, status_code):
         _display_error(response)
 
 
-def _send_delete_request(headers, to_delete, to_display):
+def _send_delete_request(headers, to_delete, to_display, feature='dataset'):
     delete = requests.delete(f'{_API_URL}datasets/{to_delete}', headers=headers)
     if delete.status_code == 204:
-        print(f'The dataset {to_display} has been deleted from the open data portal.')
+        print(f'The {feature} {to_display} has been deleted from the open data portal.')
     else:
-        print(f'The dataset {to_display} has not been deleted. Status code: {delete.status_code} - {delete.text}')
+        print(f'The {feature} {to_display} has not been deleted. Status code: {delete.status_code} - {delete.text}')
 
 
 ################################################################################
@@ -131,14 +131,14 @@ def _delete_resources(auth, dataset_name, resources):
         print(f'The dataset {dataset_name} you want to delete has not been found. Status code: {delete.status_code} - {delete.text}')
         return
     dataset = dataset.json()
-    current_resources = (resource['title'] for resource in dataset['resources'])
+    current_resources = tuple(resource['title'] for resource in dataset['resources'])
     for resource in resources:
         if resource not in current_resources:
             print(f'The resource {resource} does not exist in the dataset {dataset_name}.')
             break
         for dataset_resource in dataset['resources']:
             if resource == dataset_resource['title']:
-                _send_delete_request(headers, f'{dataset_name}/resources/{dataset_resource["id"]}', dataset_name)
+                _send_delete_request(headers, f'{dataset["id"]}/resources/{dataset_resource["id"]}', resource, feature='resource')
                 break
 
 
@@ -162,7 +162,7 @@ def _update_resources(auth, body, dataset, resources, misp_url):
     match = any(resources['title'] == resource['title'] for resource in dataset['resources'])
     args = (headers, resources, url)
     response, action, status = _update_resource(dataset, *args) if match else _create_resource(*args)
-    _handle_response('updated', 'resource', response, status)
+    _handle_response(action, 'resource', response, status)
 
 
 ################################################################################
