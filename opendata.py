@@ -68,6 +68,14 @@ def _display_error(response):
     print(f'Your query encountered an error:\n{response.status_code} - {response.reason} - {response.text}')
 
 
+def _get_authentication(auth):
+    if auth is None:
+        with open(f'{pathlib.Path(__file__).parent.absolute()}/auth.json', 'rt', encoding='utf-8') as f:
+            authentication = json.loads(f.read())
+        return authentication
+    return {"X-API-KEY": auth}
+
+
 def _get_resource_id(resources, title):
     for resource in resources:
         if resource['title'] == title:
@@ -112,14 +120,12 @@ def _create_resource(headers, resources, url):
 
 
 def _delete_dataset(auth, dataset):
-    with open(auth, 'rt', encoding='utf-8') as f:
-        headers = json.loads(f.read())
+    headers = _get_authentication(auth)
     _send_delete_request(headers, dataset, dataset)
 
 
 def _delete_resources(auth, dataset_name, resources):
-    with open(auth, 'rt', encoding='utf-8') as f:
-        headers = json.loads(f.read())
+    headers = _get_authentication(auth)
     dataset = requests.get(f'{_API_URL}datasets/{dataset_name}')
     if dataset.status_code != 200:
         print(f'The dataset {dataset_name} you want to delete has not been found. Status code: {delete.status_code} - {delete.text}')
@@ -198,14 +204,6 @@ def submit_data(args):
         _create_dataset(*arguments)
 
 
-def _get_authentication(auth):
-    if auth is None:
-        with open(f'{pathlib.Path(__file__).parent.absolute()}/auth.json', 'rt', encoding='utf-8') as f:
-            authentication = json.loads(f.read())
-        return authentication
-    return {"X-API-KEY": auth}
-
-
 def analyse_arguments(args):
     absolute_path = pathlib.Path(__file__).parent.absolute()
     recommandation = 'Please make sure the file exists and you have the right to open it.'
@@ -229,8 +227,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--delete', nargs='+', help='Delete a specific dataset or some ressources for a dataset')
     args = parser.parse_args()
     if args.delete:
-        authentication = _get_authentication(args.auth)
-        delete_data(authentication, args.delete)
+        delete_data(args.auth, args.delete)
     else:
         analyse_arguments(args)
         submit_data(args)
