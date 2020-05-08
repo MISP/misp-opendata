@@ -42,7 +42,6 @@ python3 opendata.py --level attributes
 - body.json
 ```
 {
-    "returnFormat": "json",
     "type": "x509-fingerprint-md5",
     "tags": "tlp:white"
 }
@@ -129,6 +128,57 @@ python3 opendata.py -d _DATASET_IDENTIFIER_ _RESOURCE_IDENTIFIER_ [_RESOURCE_IDE
 Both the dataset and resource identifiers are either their `id` or their permalink indentifiers (`slug`). You can delete either 1 resource, or as many as possible in one single execution.
 
 - No body.json nor setup.json content required
+
+### Usage in MISP
+
+The functionality of creating, updating or deleting datasets and resources is now available in MISP via its restSearch client.
+
+#### Creation and update
+
+We can then use the same example as before and query the opendata portal to create or update a dataset or one of its resource(s).
+
+Example of creation or update of a resource within the given dataset:
+```
+{
+    "returnFormat": "opendata",
+    "type": "x509-fingerprint-md5",
+    "tags": "tlp:white",
+    "auth": "_YOUR_OPENDATA_PORTAL_API_KEY_",
+    "setup": {
+        "dataset": {
+            "description": "Dataset test from MISP containing data shared via a MISP platform.",
+            "title": "x509 certificates shared in MISP"
+        },
+        "resources": {
+            "title": "All x509 certificates shared with MISP",
+            "type": "api",
+            "format": "json"
+        }
+    },
+    "url": "https://mispriv.circl.lu"
+}
+```
+
+#### Deletion
+
+It is also possible to delete a dataset or its resource(s) using the restSearch client in MISP.
+
+Example of deletion of resources:
+```
+{
+    "returnFormat": "opendata",
+    "auth": "_YOUR_OPENDATA_PORTAL_API_KEY_",
+    "setup": {
+        "dataset": "x509 certificates shared in MISP",
+        "resources": [
+            "x509 certificates (sha256) shared with MISP",
+            "x509 certificates (sha1) shared with MISP",
+            "x509 certificates (md5) shared with MISP"
+        ],
+    },
+    "delete": 1
+}
+```
 
 ### References
 
