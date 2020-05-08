@@ -114,7 +114,6 @@ def _create_dataset(auth, body, dataset, misp_url, resources):
 
 
 def _create_resource(headers, resources, url):
-    print('create resource')
     response = requests.post(url, headers=headers, json=resources)
     return response, 'created', 201
 
