@@ -52,7 +52,8 @@ def _fill_url(key, value):
 def _check_resources_fields(body, resources, url):
     if 'filetype' not in resources:
         resources['filetype'] = 'remote'
-    resources['format'] = body['returnFormat']
+    if 'format' not in resources:
+        resources['format'] = 'json'
     misp_url = url if url.endswith('/') else f'{url}/'
     resources['url'] = f"{misp_url}{args.level}/restSearch/{'/'.join(_fill_url(key, value) for key, value in body.items())}"
 
