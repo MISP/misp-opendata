@@ -183,3 +183,5 @@ Example of deletion of resources:
 ### References
 
 - [data.public.lu API Documentation](https://data.public.lu/fr/apidoc/)
+
+![logo](en_cef.png)
