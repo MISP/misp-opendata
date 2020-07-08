@@ -27,7 +27,7 @@ A dataset has 2 identifiers:
 Both of those identifiers can be used in a link to access to a dataset.
 
 **Resources** are the containers used within datasets to describe each data collection.  
-A dataset also has mandatory fields:
+A resource also has mandatory fields:
 - **title**: A one sentence description of the data resource
 - **type**: The resource type (documentation, main file, API, ...)
 - **url**: URL to the data itself
