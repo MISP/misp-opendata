@@ -162,7 +162,7 @@ The resource x509 certificates (md5) shared with MISP has been deleted from the 
 ## Future improvements
 
 List of non-exhaustive possible improvements for the implementation of the Open data feature:
-- Make it available for other Open data portals (the support of european national portals are currently being tested, such as the French one). Status of the currently supported portals available [here](https://github.com/misp/misp-opendata/portals_support.md).
+- Make it available for other Open data portals (the support of european national portals are currently being tested, such as the French one). Status of the currently supported portals available [here](https://github.com/MISP/misp-opendata/blob/main/portals_support.md).
 - Allow users to upload data collections in the different supported data portals (and deal with the content size limit).
 - Enhancement of the parameters handling to support multiple datasets/resources creation in one MISP restSearch query.
 
