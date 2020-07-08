@@ -2,7 +2,7 @@
 
 #### Supported
 
-- [Luxembourg data platform][https://data.public.lu]
+- [Luxembourg data platform](https://data.public.lu)
 
 #### Currently tested
 
