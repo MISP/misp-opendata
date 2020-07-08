@@ -1,4 +1,4 @@
-## Overview of the current support status of Open data portals
+## Overview of the current support of Open data portals status
 
 #### Supported
 
