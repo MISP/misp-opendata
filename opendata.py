@@ -14,7 +14,7 @@ class OpendataExport():
         self._auth = auth
         self._auth['Content-type'] = 'application/json'
         self._api_url = f'{url}api/1/'
-        self._dataset_url = f'{url}en/datasets'
+        self._dataset_url = f'{url}en/datasets/'
 
     def parse_arguments(self, args):
         self.level = args.level
@@ -26,7 +26,8 @@ class OpendataExport():
                 with open(filename, 'rt', encoding='utf-8') as f:
                     setattr(self, feature, json.loads(f.read()))
             except (FileNotFoundError, PermissionError):
-                sys.exit(f'The {feature} file specified ({filename}) cannot be opened. {recommandation}')
+                print(f'The {feature} file specified ({filename}) cannot be opened. {recommandation}')
+                sys.exit(0)
 
     ################################################################################
     #                            MAIN PARSING FUNCTIONS                            #
@@ -126,7 +127,7 @@ class OpendataExport():
         self.setup['dataset'].update({key: now for key in ('created_at', 'last_modified', 'last_updated')})
         slug = self.setup['dataset']['slug']
         self.setup['dataset']['page'] = f'{self._dataset_url}{slug}/'
-        self.setup['dataset']['uri'] = f'{self._dataset_url}datasets/{slug}/'
+        self.setup['dataset']['uri'] = f'{self._api_url}datasets/{slug}/'
 
     def _check_resources_fields(self):
         for feature, value in zip(('filetype', 'format'), ('remote', 'json')):
@@ -187,9 +188,10 @@ def _check_portal_arguments(auth_arg, url_arg):
             portal_url = supported_portal
             break
     if not portal_url:
-        portal_urls = '\n'.join(supported_portals)
-        sys.exit(f'The provided portal url is not supported yet (or misspelled).\nPlease choose one of the followings:\n{portal_urls}')
-    if auth_arg is not None:
+        portal_urls = '\n - '.join(supported_portals)
+        print(f'The provided portal url is not supported yet (or misspelled).\nPlease choose one of the followings:\n - {portal_urls}')
+        sys.exit(0)
+    if auth_arg is None:
         with open(f'{_ABSOLUTE_PATH}/auth.json', 'rt', encoding='utf-8') as f:
             authentication = json.loads(f.read())
         return authentication, portal_url
@@ -207,7 +209,6 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--delete', nargs='+', help='Delete a specific dataset or some ressources for a dataset')
     args = parser.parse_args()
     auth, portal_url = _check_portal_arguments(args.auth, args.portal_url)
-    print(portal_url)
     opendata_export = OpendataExport(auth, portal_url)
     if args.delete:
         opendata_export.delete_data(args.delete)
