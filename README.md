@@ -2,7 +2,7 @@
 
 ### Description
 
-This small piece of code can be used to query the [data.public.lu](https://data.public.lu) open data portal in order to create, update or delete a dataset or a resource. All the resources created are pointing to restSearch queries in MISP, giving access to the actual data shared in the given MISP server.  
+This small piece of code can be used to query Open data portals (like [data.public.lu](https://data.public.lu)) in order to create, update or delete a dataset or a resource. All the resources created are pointing to restSearch queries in MISP, giving access to the actual data shared in the given MISP server.  
 (_It is now available for the Luxembourgish portal, but can be extended to support queries to any european opendata portal._)
 
 The [opendata.py](opendata.py) python script provides the necessary functionalities to  interact with the opendata portal. It is used and called by MISP to make the features available from any MISP server, but it also works as a standalone functionality. Details about its usage are provided below.
@@ -66,7 +66,10 @@ The fields defined in the setup document are the minimum requirements to make an
 
 The script uses a couple of different parameters in order to define the values associated with the required dataset/resource fields, the API key that should be used, and the kind of data from MISP that is going to be shared. For those 3 features, 3 different parameters are defined and pointing by default to the file names of the 3 json documents already mentioned above. The user can use some different ones as long as the content of the json document(s) used meet the requirements.
 
-Another important parameter is the url of the MISP instance to use as resource for the actual data described in the open data resources. This url also has a default value that can be overwritten by user while executing the script.
+Another important parameter is the url of the MISP instance to use as resource for the actual data described in the open data resources. This url also has a default value that can be overwritten by user while executing the script.  
+The url value set by default is `misppriv.circl.lu` but you can choose any MISP server you have access to and that you want to use to share data, using the `--misp_url` parameter.
+
+As you can now choose which portal you want to query, there is also a default value for this feature, which is `data.public.lu`, but again you can query any of the [supported portals](https://github.com/MISP/misp-opendata/blob/main/supported_portals.json) (An [overview of the current progression for the support of some Open data platforms](https://github.com/MISP/misp-opendata/blob/main/portals_support.md) is also available) by using the `--portal_url` parameter.
 
 The last parameter is the type of data that should be used as data in MISP (attributes or events). This one defines the level of data in MISP to be used as data resource. In other words, do we want the open data resource url to point to MISP events containing at least 1 attribute matching the restSearch filters define in the body.json document? Or simply the single attributes matching those filters?
 
@@ -80,7 +83,7 @@ _In this case, the dataset with the title mentioned as example does not exist ye
 
 - Python command
 ```
-python3 opendata.py --level attributes
+python3 opendata.py --level attributes --misp_url *_YOUR_MISP_URL_* --portal_url data.public.lu
 ```
 
 - body.json
@@ -157,7 +160,7 @@ _Only if the dataset and resource with the titles mentioned already exist._
 
 - Python command
 ```
-python3 opendata.py -d _DATASET_IDENTIFIER_
+python3 opendata.py --portal_url data.public.lu -d _DATASET_IDENTIFIER_
 ```
 Please note the dataset identifier is either its `id` or its permalink identifier (`slug`)
 
@@ -167,7 +170,7 @@ Please note the dataset identifier is either its `id` or its permalink identifie
 
 - Python command
 ```
-python3 opendata.py -d _DATASET_IDENTIFIER_ _RESOURCE_IDENTIFIER_ [_RESOURCE_IDENTIFIER_]
+python3 opendata.py --portal_url data.public.lu -d _DATASET_IDENTIFIER_ _RESOURCE_IDENTIFIER_ [_RESOURCE_IDENTIFIER_]
 ```
 Both the dataset and resource identifiers are either their `id` or their permalink indentifiers (`slug`). You can delete either 1 resource, or as many as possible in one single execution.
 
@@ -201,7 +204,8 @@ Example of creation or update of a resource within the given dataset:
             "format": "json"
         }
     },
-    "url": "https://mispriv.circl.lu"
+    "misp-url": "https://mispriv.circl.lu",
+    "portal-url": "data.public.lu"
 }
 ```
 
@@ -222,7 +226,8 @@ Example of deletion of resources:
             "x509 certificates (md5) shared with MISP"
         ],
     },
-    "delete": 1
+    "delete": 1,
+    "portal-url": "data.public.lu"
 }
 ```
 

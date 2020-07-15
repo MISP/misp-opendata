@@ -80,7 +80,8 @@ Here is an example of query that can be used to create a dataset with a resource
             "format": "json"
         }
     },
-    "url": "https://mispriv.circl.lu"
+    "misp-url": "https://mispriv.circl.lu",
+    "portal-url": "data.public.lu"
 }
 ```
 In this example, we can see the minimum requirement of information needed to interact with the Open data portal:
@@ -92,8 +93,10 @@ _Optional non exhaustive list of filters (Look at the [MISP Search API Documenta
 _Required_
 - `setup` contains all the metadata information used to create the dataset and its resource.  
 _Should contain at least the [required fields](#the-open-data-format) for datasets (and potentially resources)_
-- `url` is the address of the MISP server to use in the link pointing to the data.  
+- `misp-url` is the address of the MISP server to use in the link pointing to the data.  
 _If not set, the default external base url of the MISP server is used, if set, otherwise the default internal base url._
+- `portal-url` is the address of the Open data portal to query.  
+_If not set, the default one will be `data.public.lu`._
 
 Within the setup fields, `title` is the one that is used to identify the dataset and the resource.  
 **The Open data portal API deals with the datasets and resources `id` fields, but MISP handles this for us, so users only have to provide titles.**  
@@ -120,7 +123,8 @@ You can also find the json format equivalent: https://data.public.lu/api/1/datas
 ### Delete data from an Open data portal
 
 Deleting data from an Open data portal requires less information than what is needed to create or modify some content.  
-As we already explained that datasets and resources can be identified by their title, we only need to identify which dataset or resource to delete and thus no longer need to add additional fields in the query.
+The MISP server url does not matter anymore in the case of a deletion, but we can still specify which Open data portal to query.  
+As we already explained that datasets and resources can be identified by their title, we only need then to identify which dataset or resource to delete and thus no longer need to add additional fields in the query.
 
 Which gives us the following example:
 ```
@@ -135,7 +139,8 @@ Which gives us the following example:
             "x509 certificates (md5) shared with MISP"
         ],
     },
-    "delete": 1
+    "delete": 1,
+    "portal-url": "data.public.lu"
 }
 ```
 Only some required fields remain:
@@ -147,6 +152,8 @@ _Required_
 _Should contain a valid dataset title (and potentially valid resource titles)_
 - `delete` in order to tell MISP that we want to process a delete query.  
 _Required to be set to 1_
+- `portal-url` to select the Open data portal to query.  
+If not set, `data.public.lu` is the default value
 
 Note that if only a dataset title is provided, the portal will be queried for a full dataset delete, which includes all of its resources.  
 Alternatively, if at least 1 resource title is provided, it will only delete the referenced resources, and the dataset will still exist, with its potential resources that have not been deleted.
@@ -162,7 +169,7 @@ The resource x509 certificates (md5) shared with MISP has been deleted from the 
 ## Future improvements
 
 List of non-exhaustive possible improvements for the implementation of the Open data feature:
-- Make it available for other Open data portals (the support of european national portals are currently being tested, such as the French one). Status of the currently supported portals available [here](https://github.com/MISP/misp-opendata/blob/main/portals_support.md).
+- Make it available for more Open data portals. Status of the currently supported portals available [here](https://github.com/MISP/misp-opendata/blob/main/portals_support.md).
 - Allow users to upload data collections in the different supported data portals (and deal with the content size limit).
 - Enhancement of the parameters handling to support multiple datasets/resources creation in one MISP restSearch query.
 
