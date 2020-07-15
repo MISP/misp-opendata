@@ -3,9 +3,9 @@
 ### Description
 
 This small piece of code can be used to query Open data portals (like [data.public.lu](https://data.public.lu)) in order to create, update or delete a dataset or a resource. All the resources created are pointing to restSearch queries in MISP, giving access to the actual data shared in the given MISP server.  
-(_It is now available for the Luxembourgish portal, but can be extended to support queries to any european opendata portal._)
+(_The list of supported portals will be extended to support more and more european opendata portals._)
 
-The [opendata.py](opendata.py) python script provides the necessary functionalities to  interact with the opendata portal. It is used and called by MISP to make the features available from any MISP server, but it also works as a standalone functionality. Details about its usage are provided below.
+The [opendata.py](opendata.py) python script provides the necessary functionalities to interact with opendata portals. It is used and called by MISP to make the features available from any MISP server, but it also works as a standalone functionality. Details about its usage are provided below.
 
 #### The Opendata format
 
@@ -83,7 +83,7 @@ _In this case, the dataset with the title mentioned as example does not exist ye
 
 - Python command
 ```
-python3 opendata.py --level attributes --misp_url *_YOUR_MISP_URL_* --portal_url data.public.lu
+python3 opendata.py --level attributes --misp_url _YOUR_MISP_URL_ --portal_url data.public.lu
 ```
 
 - body.json
