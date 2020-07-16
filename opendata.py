@@ -41,6 +41,14 @@ class OpendataExport():
             resources = to_delete[1:]
             self._delete_resources(dataset, resources)
 
+    def search_data(self, to_search):
+        if len(to_search) == 1:
+            self._search_dataset(to_search[0])
+        else:
+            dataset = to_search[0]
+            resources = to_search[1:]
+            self._search_resources(dataset, resources)
+
     def submit_data(self):
         required_dataset_fields = ('title', 'description')
         required_resources_fields = ('title', 'type')
@@ -48,16 +56,14 @@ class OpendataExport():
             if feature in self.setup and not any(required in self.setup[feature] for required in locals()[f'required_{feature}_fields']):
                 print(f'Please make sure the {feature} you want to create/update contains at least one of the 2 required fields: {", ".join(locals()[f"required_{feature}_fields"])}')
                 return
-        slug = '-'.join(self.setup['dataset']['title'].lower().split(' '))
-        url = f'{self._api_url}datasets/{slug}/'
-        dataset = requests.get(url)
+        dataset = requests.get(f"{self._api_url}datasets/{self.setup['dataset']['title']}")
         if dataset.status_code == 200:
             if 'resources' in self.setup:
                 self._update_resources(dataset.json())
             else:
                 self._update_dataset(dataset.json()['id'])
         else:
-            self.setup['dataset']['slug'] = slug
+            self.setup['dataset']['slug'] = '-'.join(self.setup['dataset']['title'].lower().strip().split(' '))
             self._create_dataset()
 
     ################################################################################
@@ -92,6 +98,42 @@ class OpendataExport():
                 if resource == dataset_resource['title']:
                     self._send_delete_request(f'{dataset["id"]}/resources/{dataset_resource["id"]}', resource, feature='resource')
                     break
+
+    def _search_dataset(self, to_search):
+        dataset = requests.get(f'{self._api_url}datasets/{to_search}/')
+        if dataset.status_code == 200:
+            print(json.dumps(dataset.json(), indent=4))
+        else:
+            print(f'The dataset {to_search} you are looking for has not been found. Status: {dataset.status_code} - {dataset.text}')
+
+    def _search_resources(self, dataset_to_search, resources_to_search):
+        dataset = requests.get(f'{self._api_url}datasets/{dataset_to_search}')
+        if dataset.status_code != 200:
+            print(f'The dataset {dataset_to_search} you are looking for has not been found. Status: {dataset.status_code} - {dataset.text}')
+            return
+        dataset = dataset.json()
+        existing_resources = {resource['title']: resource for resource in dataset.pop('resources')}
+        if len(existing_resources) == len(resources_to_search) and all(resource in existing_resources for resource in resources_to_search):
+            dataset['resources'] = [resource for resource in existing_resources.values()]
+            print(f'The dataset you mentioned contains all the resources you are looking for:\n{json.dumps(dataset, indent=4)}')
+            return
+        resources = []
+        not_found = []
+        for resource in resources_to_search:
+            if resource in existing_resources:
+                resources.append(existing_resources.pop(resource))
+            else:
+                not_found.append(resource)
+        if not resources:
+            dataset['resources'] = [resource for resource in existing_resources.values()]
+            beginning, has = ('The resource', 'has not') if len(resources_to_search) == 1 else ('None of the resources', 'have')
+            print(f"{beginning} you looked for ({', '.join(resources_to_search)}) {has} been found in the following dataset:\n{json.dumps(dataset, indent=4)}")
+            return
+        if not_found:
+            beginning, has = ('A resource', 'has') if len(not_found) == 1 else ('Some of the resources', 'have')
+            print(f"{beginning} you mentioned ({', '.join(not_found)}) {has} not been found in the dataset {dataset_to_search}.")
+        dataset['resources'] = resources
+        print(f'Here is a subset of the available resources you looked for, within their dataset:\n{json.dumps(dataset, indent=4)}')
 
     def _update_dataset(self, dataset_id):
         response = requests.put(f'{self._api_url}datasets/{dataset_id}/', headers=self._auth, json=self.setup['dataset'])
@@ -206,11 +248,16 @@ if __name__ == '__main__':
     parser.add_argument('--misp_url', default='https://misppriv.circl.lu', help='Url of the MISP instance.')
     parser.add_argument('--portal_url', default='data.public.lu', help='Url of the Open data portal.')
     parser.add_argument('--auth', help='Authentication required for the opendata portal (API key). (using auth.json file if not set)')
-    parser.add_argument('-d', '--delete', nargs='+', help='Delete a specific dataset or some ressources for a dataset')
+    parser.add_argument('-d', '--delete', nargs='+', help='Delete a specific dataset or some ressources of a dataset')
+    parser.add_argument('-s', '--search', nargs='+', help='Search for a dataset or resources.')
     args = parser.parse_args()
     auth, portal_url = _check_portal_arguments(args.auth, args.portal_url)
     opendata_export = OpendataExport(auth, portal_url)
-    if args.delete:
+    if args.search:
+        if args.delete:
+            print('The search parameter is used alongside with the delete parameter. For now we will only show the result of the search query, if you want to delete some data, please remove the search parameter.')
+        opendata_export.search_data(args.search)
+    elif args.delete:
         opendata_export.delete_data(args.delete)
     else:
         opendata_export.parse_arguments(args)
