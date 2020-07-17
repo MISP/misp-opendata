@@ -148,12 +148,13 @@ Only some required fields remain:
 _Required to be set to `opendata`_
 - `auth`, as always.  
 _Required_
-- `setup` which now only contains the dataset, and resource(s) (or not) titles.  
-_Should contain a valid dataset title (and potentially valid resource titles)_
-- `delete` in order to tell MISP that we want to process a delete query.  
+- `setup` which now only contains the dataset, and (and optionally resource(s)) title(s).  
+_Should contain a valid dataset title (and valid resource titles if necessary)_  
+_Put resources titles into brackets for more than 1 resource, without brackets otherwise._
+- `delete` in order to tell MISP that we want to execute a delete query.  
 _Required to be set to 1_
 - `portal-url` to select the Open data portal to query.  
-If not set, `data.public.lu` is the default value
+_If not set, `data.public.lu` is the default value_
 
 Note that if only a dataset title is provided, the portal will be queried for a full dataset delete, which includes all of its resources.  
 Alternatively, if at least 1 resource title is provided, it will only delete the referenced resources, and the dataset will still exist, with its potential resources that have not been deleted.
@@ -164,6 +165,41 @@ The resource x509 certificates (sha256) shared with MISP has been deleted from t
 The resource x509 certificates (sha1) shared with MISP has been deleted from the open data portal.
 The resource x509 certificates (md5) shared with MISP has been deleted from the open data portal.
 ```
+
+### Search data stored in an Open data portal
+
+Before updating or deleting some data from the Open data portal, you may want to check first the content of a dataset and/or resource.  
+To do so, there is a search feature that can show the full content of a dataset and its resources, in json format, as it is stored and available on the portal.
+
+This feature does not push any modification to the dataset or the resources on the platform and only sends a `GET` query to gather the content you want to show.  
+Thus, it is the only case where the authentication is not needed.
+
+This gives us the following example:
+```
+{
+    "returnFormat": "opendata",
+    "setup": {
+        "dataset": "x509 certificates shared in MISP",
+        "resources": "All x509 certificates shared with MISP"
+    }
+    "search": 1,
+    "portal-url": "data.public.lu"
+}
+```
+
+Only a few fields are still required:
+- `returnFormat`, as always, to get to the correct MISP endpoint.  
+_Required to be set to `opendata`_
+- `setup` which now only contains the dataset (and optionally resource(s)) title(s).
+_Should contain a valid dataset title (and valid resource titles if necessary)_  
+_Put resources titles into brackets for more than 1 resource, without brackets otherwise._
+- `search` in order to tell MISP that we want to execute a search query.  
+_Required to be set to 1_
+- `portal-url` to select the Open data portal to query.  
+_If not set, `data.public.lu` is the default value_
+
+In this case, the json format of the dataset and its resources is then displayed (with some warning when needed)
+
 ----
 
 ## Future improvements

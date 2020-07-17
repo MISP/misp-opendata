@@ -172,9 +172,24 @@ Please note the dataset identifier is either its `id` or its permalink identifie
 ```
 python3 opendata.py --portal_url data.public.lu -d _DATASET_IDENTIFIER_ _RESOURCE_IDENTIFIER_ [_RESOURCE_IDENTIFIER_]
 ```
+(The parameter between brackets mean it is optional)  
 Both the dataset and resource identifiers are either their `id` or their permalink indentifiers (`slug`). You can delete either 1 resource, or as many as possible in one single execution.
 
 - No body.json nor setup.json content required
+
+#### Search
+
+Alternatively, you can just look for the existing datasets and resources, without modifying anything, by simply using the `search` parameter.  
+In that case, the required fields are the same as the ones used to delete content.  
+The difference with the previous feature is you can use exclusively titles of datasets and resources to proceed your search.
+
+- Python command
+```
+python3 opendata.py --portal_url data.public.lu -s 'A dataset title' ['A resource title'] ['Another resource title']
+```
+(Again, the parameters between brackets are optional)
+
+There is no other requirements for this query to be successful since we only get data and there is no data modification.
 
 ----
 
@@ -227,6 +242,21 @@ Example of deletion of resources:
         ],
     },
     "delete": 1,
+    "portal-url": "data.public.lu"
+}
+```
+
+#### Search
+
+As for the previous features, the search functionality is also available in MISP:
+```
+{
+    "returnFormat": "opendata",
+    "setup": {
+        "dataset": "x509 certificates shared in MISP",
+        "resources": "All x509 certificates shared with MISP"
+    },
+    "search": 1,
     "portal-url": "data.public.lu"
 }
 ```
