@@ -26,7 +26,7 @@ class OpendataExport():
                 with open(filename, 'rt', encoding='utf-8') as f:
                     setattr(self, feature, json.loads(f.read()))
             except (FileNotFoundError, PermissionError):
-                print(f'The {feature} file specified ({filename}) cannot be opened. {recommandation}')
+                print(f'/!\ The {feature} file specified ({filename}) cannot be opened. /!\ \n{recommandation}')
                 sys.exit(0)
 
     ################################################################################
@@ -54,7 +54,8 @@ class OpendataExport():
         required_resources_fields = ('title', 'type')
         for feature in ('dataset', 'resources'):
             if feature in self.setup and not any(required in self.setup[feature] for required in locals()[f'required_{feature}_fields']):
-                print(f'Please make sure the {feature} you want to create/update contains at least one of the 2 required fields: {", ".join(locals()[f"required_{feature}_fields"])}')
+                print(f'/!\ Error with the {feature} required fields. /!\')
+                print(f'Please make it contains the required fields: {", ".join(locals()[f"required_{feature}_fields"])}')
                 return
         dataset = requests.get(f"{self._api_url}datasets/{self.setup['dataset']['title']}")
         if dataset.status_code == 200:
@@ -86,7 +87,7 @@ class OpendataExport():
     def _delete_resources(self, dataset_name, resources):
         dataset = requests.get(f'{self._api_url}datasets/{dataset_name}')
         if dataset.status_code != 200:
-            print(f'The dataset {dataset_name} you want to delete has not been found. Status code: {delete.status_code} - {delete.text}')
+            print(f'/!\ The dataset {dataset_name} you want to delete has not been found. /!\ \nStatus: {delete.status_code} - {delete.text}')
             return
         dataset = dataset.json()
         current_resources = tuple(resource['title'] for resource in dataset['resources'])
@@ -104,18 +105,18 @@ class OpendataExport():
         if dataset.status_code == 200:
             print(json.dumps(dataset.json(), indent=4))
         else:
-            print(f'The dataset {to_search} you are looking for has not been found. Status: {dataset.status_code} - {dataset.text}')
+            print(f'/!\ The dataset {to_search} you are looking for has not been found. /!\ \nStatus: {dataset.status_code} - {dataset.text}')
 
     def _search_resources(self, dataset_to_search, resources_to_search):
         dataset = requests.get(f'{self._api_url}datasets/{dataset_to_search}')
         if dataset.status_code != 200:
-            print(f'The dataset {dataset_to_search} you are looking for has not been found. Status: {dataset.status_code} - {dataset.text}')
+            print(f'/!\ The dataset {dataset_to_search} you are looking for has not been found. /!\ \nStatus: {dataset.status_code} - {dataset.text}')
             return
         dataset = dataset.json()
         existing_resources = {resource['title']: resource for resource in dataset.pop('resources')}
         if len(existing_resources) == len(resources_to_search) and all(resource in existing_resources for resource in resources_to_search):
             dataset['resources'] = [resource for resource in existing_resources.values()]
-            print(f'The dataset you mentioned contains all the resources you are looking for:\n{json.dumps(dataset, indent=4)}')
+            print(json.dumps(dataset, indent=4))
             return
         resources = []
         not_found = []
@@ -160,7 +161,7 @@ class OpendataExport():
         if delete.status_code == 204:
             print(f'The {feature} {to_display} has been deleted from the open data portal.')
         else:
-            print(f'The {feature} {to_display} has not been deleted. Status code: {delete.status_code} - {delete.text}')
+            print(f'/!\ The {feature} {to_display} has not been deleted. /!\ \nStatus code: {delete.status_code} - {delete.text}')
 
     def _check_dataset_fields(self):
         if 'frequency' not in self.setup['dataset']:
@@ -200,7 +201,7 @@ class OpendataExport():
 
     @staticmethod
     def _display_error(response):
-        print(f'Your query encountered an error:\n{response.status_code} - {response.reason} - {response.text}')
+        print(f'/!\ Your query encountered an error. /!\ \n{response.status_code} - {response.reason} - {response.text}')
 
     @staticmethod
     def _fill_url(key, value):
@@ -231,7 +232,7 @@ def _check_portal_arguments(auth_arg, url_arg):
             break
     if not portal_url:
         portal_urls = '\n - '.join(supported_portals)
-        print(f'The provided portal url is not supported yet (or misspelled).\nPlease choose one of the followings:\n - {portal_urls}')
+        print(f'/!\ The provided portal url is not supported yet (or misspelled). /!\ \nPlease choose one of the followings:\n - {portal_urls}')
         sys.exit(0)
     if auth_arg is None:
         with open(f'{_ABSOLUTE_PATH}/auth.json', 'rt', encoding='utf-8') as f:
