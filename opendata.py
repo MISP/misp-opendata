@@ -54,7 +54,7 @@ class OpendataExport():
         required_resources_fields = ('title', 'type')
         for feature in ('dataset', 'resources'):
             if feature in self.setup and not any(required in self.setup[feature] for required in locals()[f'required_{feature}_fields']):
-                print(f'/!\ Error with the {feature} required fields. /!\')
+                print(f'/!\\ Error with the {feature} required fields. /!\\')
                 print(f'Please make it contains the required fields: {", ".join(locals()[f"required_{feature}_fields"])}')
                 return
         dataset = requests.get(f"{self._api_url}datasets/{self.setup['dataset']['title']}")
