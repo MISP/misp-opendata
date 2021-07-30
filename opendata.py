@@ -54,7 +54,7 @@ class OpendataExport():
         required_resources_fields = ('title', 'type')
         for feature in ('dataset', 'resources'):
             if feature in self.setup and not any(required in self.setup[feature] for required in locals()[f'required_{feature}_fields']):
-                print(f'/!\\ Error with the {feature} required fields. /!\\')
+                print(f'/!\ Error with the {feature} required fields. /!\\')
                 print(f'Please make it contains the required fields: {", ".join(locals()[f"required_{feature}_fields"])}')
                 return
         dataset = requests.get(f"{self._api_url}datasets/{self.setup['dataset']['title']}")
@@ -251,7 +251,19 @@ if __name__ == '__main__':
     parser.add_argument('--auth', help='Authentication required for the opendata portal (API key). (using auth.json file if not set)')
     parser.add_argument('-d', '--delete', nargs='+', help='Delete a specific dataset or some ressources of a dataset')
     parser.add_argument('-s', '--search', nargs='+', help='Search for a dataset or resources.')
+    parser.add_argument('--query_data', help='Query parameters passed as a JSON file (accepted keys: level, setup, misp_url, portal_url, auth.')
     args = parser.parse_args()
+    if args.query_data:
+        filename = args.query_data
+        try:
+            with open(filename, 'rt', encoding='utf-8') as f:
+                settings = json.loads(f.read())
+                for key in ['level', 'misp_url', 'portal_url', 'auth', 'search', 'delete', 'body']:
+                    if settings.get(key):
+                        setattr(args, key, settings[key])
+        except (FileNotFoundError, PermissionError):
+            print(f'/!\ The command file specified ({filename}) cannot be opened. /!\ ')
+            sys.exit(0)
     auth, portal_url = _check_portal_arguments(args.auth, args.portal_url)
     opendata_export = OpendataExport(auth, portal_url)
     if args.search:
