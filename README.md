@@ -269,3 +269,5 @@ As for the previous features, the search functionality is also available in MISP
 - [MISP Search API Documentation](https://github.com/MISP/misp-book/tree/master/automation#search)
 
 ![logo](en_cef.png)
+
+**This feature was co-funded as part of the European Union INEA/HADEA CEF [VARIoT](https://www.variot.eu/) project [2018-EU-IA-0100](https://ec.europa.eu/inea/en/connecting-europe-facility/cef-telecom/2018-eu-ia-0100).**
