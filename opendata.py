@@ -87,7 +87,7 @@ class OpendataExport():
     def _delete_resources(self, dataset_name, resources):
         dataset = requests.get(f'{self._api_url}datasets/{dataset_name}')
         if dataset.status_code != 200:
-            print(f'/!\ The dataset {dataset_name} you want to delete has not been found. /!\ \nStatus: {delete.status_code} - {delete.text}')
+            print(f'/!\ The dataset {dataset_name} you want to delete has not been found. /!\ \nStatus: {dataset.status_code} - {dataset.text}')
             return
         dataset = dataset.json()
         current_resources = tuple(resource['title'] for resource in dataset['resources'])
