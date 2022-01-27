@@ -19,6 +19,10 @@ _RESOURCE_REQUIRED_FIELDS = (
     'url',
     'format'
 )
+_RESOURCE_SEARCH_FIELDS = (
+    'resource_id',
+    'resource_title'
+)
 _RESOURCE_TYPES = (
     'api',
     'code',
@@ -29,6 +33,10 @@ _RESOURCE_TYPES = (
 )
 
 
+def display_error(result):
+    return f' - Status code: {result.status_code}\n - Reason: {result.reason}\n - Raw text: {result.text}'
+
+
 def fetch_dataset(datasets, title, feature):
     for dataset in datasets:
         if dataset['title'] == title:
@@ -36,42 +44,73 @@ def fetch_dataset(datasets, title, feature):
     return f"No dataset with the specified title in your {feature} datasets."
 
 
-def parse_publication_date(publication_date):
-    try:
-        datetime.strptime(publication_date, '%Y-%m-%d')
-        return publication_date
-    except ValueError:
-        pass
-    try:
-        datetime.strptime(publication_date, '%Y-%m-%dT%H:%M:%S')
-        return publication_date
-    except ValueError:
-        print(f'Your publication_date value {publication_date} is not in a standard datetime format, please express it in one of the following format: %Y-%m-%d or %Y-%m-%dT%H:%M:%S')
+def get_dataset(authentication_key, title):
+    auth = {'X-API-KEY': authentication_key}
+    for feature in ('datasets', 'org_datasets'):
+        datasets = requests.get(f"{_API_URL}me/{feature}/", headers=auth)
+        if datasets.status_code != 200:
+            print(f"Error while searching for your {feature}: {datasets.reason}\n{datasets.text}")
+            continue
+        for dataset in datasets.json():
+            if dataset['title'] == title:
+                return dataset
+    print(f"You don't have any dataset with the specified title ({title}).")
+
+
+def parse_publication_date(date):
+    for regex in _DATETIME_REGEXES:
+        try:
+            datetime.strptime(date, regex)
+            return date
+        except ValueError:
+            continue
+    print(f"Your publication_date value ({date}) is not in a standard datetime format, please use one of the following format: {', '.join(_DATETIME_REGEXES)}")
 
 
 def search_dataset(args):
-    if args.slug is not None:
-        dataset = requests.get(f"{_API_URL}datasets/{args.slug}")
-        if dataset.status_code == 200:
-            dataset = dataset.json()
-            print(f"There is a match for your request:{json.dumps(dataset, indent=4)}")
-        else:
-            print(f"Error while querying the opendata portal: {dataset.text}")
-    else:
+    if args.dataset_title is not None:
         if args.auth is None:
-            print('The API key is required if you want to search for your own datasets')
+            print('The API key is required if you want to search for a dataset using its title')
             return
-        auth = {'X-API-KEY': args.auth}
-        own_datasets = requests.get(f"{_API_URL}me/datasets", headers=auth)
-        if own_datasets.status_code == 200:
-            print(fetch_dataset(own_datasets.json(), args.title, 'own'))
+        dataset = get_dataset(args.auth, args.dataset_title)
+        if dataset is None:
+            return
+        if any(getattr(args, field) is not None for field in _RESOURCE_SEARCH_FIELDS):
+            for field in _RESOURCE_SEARCH_FIELDS:
+                value = getattr(args, field)
+                if value is None:
+                    continue
+                feature = field.split('_')[1]
+                for resource in dataset['resources']:
+                    if resource[feature] == value:
+                        print(f"Successfully found the requested resource:\n{json.dumps(resource, indent=4)}")
+                        return
+            print(f"No result for the resource you requested, here is the full dataset instead:{json.dumps(dataset, indent=4)}")
         else:
-            print(f'Unable to get your own datasets: {own_datasets.text}')
-        org_datasets = requests.get(f"{_API_URL}me/org_datasets", headers=auth)
-        if org_datasets.status_code == 200:
-            print(fetch_dataset(org_datasets.json(), args.title, 'org'))
+            print(f"Successfully found the requested dataset:\n{json.dumps(dataset, indent=4)}")
+    else:
+        query = f"datasets/{args.dataset_id if args.dataset_id is not None else args.dataset_slug}/"
+        if args.resource_id is not None:
+            resource = requests.get(f"{_API_URL}{query}resources/{args.resource_id}/")
+            if resource.status_code == 200:
+                print(f"Successfully found the requested resource:\n{json.dumps(resource.json(), indent=4)}")
+            else:
+                print(f"Error while searching the requested resource:\n{display_error(resource)}")
         else:
-            print(f'Unable to get your org datasets: {own_datasets.text}')
+            dataset = requests.get(f"{_API_URL}{query}/")
+            if dataset.status_code == 200:
+                if args.resource_title is not None:
+                    for resource in dataset.json()['resources']:
+                        if resource['title'] == args.resource_title:
+                            print(f"Successfully found the requested resource:\n{json.dumps(resource, indent=4)}")
+                            return
+                    print("No result for the resource you requested, here is the full dataset instead:")
+                else:
+                    print("Successfully found the requested dataset:")
+                print(json.dumps(dataset.json(), indent=4))
+            else:
+                print(f"Error with the requested dataset:\n{display_error(dataset)}")
+
 
 def submit_resource(args):
     auth = {'X-API-KEY': args.auth}
@@ -120,10 +159,14 @@ if __name__ == '__main__':
     submit_parser.set_defaults(func=submit_resource)
 
     search_parser = subparsers.add_parser('search', help='Search for a dataset.')
-    identifier = search_parser.add_mutually_exclusive_group(required=True)
-    identifier.add_argument('--title', help='Dataset title.')
-    identifier.add_argument('--slug', help='Dataset slug (unique identifier generated with the dataset title).')
+    dataset_identifier = search_parser.add_mutually_exclusive_group(required=True)
+    dataset_identifier.add_argument('--dataset_title', help='Dataset title.')
+    dataset_identifier.add_argument('--dataset_slug', help='Dataset slug (unique identifier generated with the dataset title).')
+    dataset_identifier.add_argument('--dataset_id', help='Dataset ID.')
     search_parser.add_argument('--auth', help='API key.')
+    resource_identifier = search_parser.add_mutually_exclusive_group()
+    resource_identifier.add_argument('--resource_id', help='Resource ID.')
+    resource_identifier.add_argument('--resource_title', help='Resource title')
     search_parser.set_defaults(func=search_dataset)
 
     args = parser.parse_args()
