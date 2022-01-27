@@ -4,6 +4,11 @@ import requests
 from datetime import datetime
 
 _API_URL = 'https://data.public.lu/api/1/'
+_DATETIME_REGEXES = (
+    '%Y-%m-%d',
+    '%Y-%m-%dT%H:%M:%S',
+    '%Y-%m-%dT%H:%M:%SZ'
+)
 _RESOURCE_HASH_FIELDS = (
     'md5',
     'sha1',
@@ -31,6 +36,7 @@ _RESOURCE_TYPES = (
     'other',
     'update'
 )
+_RESOURCE_UPDATE_FIELDS = _RESOURCE_REQUIRED_FIELDS + _RESOURCE_OPTIONAL_FIELDS + ('description',)
 
 
 def display_error(result):
@@ -65,6 +71,19 @@ def parse_publication_date(date):
         except ValueError:
             continue
     print(f"Your publication_date value ({date}) is not in a standard datetime format, please use one of the following format: {', '.join(_DATETIME_REGEXES)}")
+
+
+def parse_resource_fields(args):
+    resource = {}
+    if args.publication_date is not None:
+        publication_date = parse_publication_date(args.publication_date)
+        if publication_date is not None:
+            resource['published'] = publication_date
+    for field in _RESOURCE_HASH_FIELDS:
+        if getattr(args, field) is not None:
+            resource['checksum'] = {'type': field, 'value': getattr(args, field)}
+            break
+    return resource
 
 
 def search_dataset(args):
@@ -120,21 +139,31 @@ def submit_resource(args):
     for field in _RESOURCE_OPTIONAL_FIELDS:
         if getattr(args, field) is not None:
             resource[field] = getattr(args, field)
-    if args.publication_date is not None:
-        publication_date = parse_publication_date(args.publication_date)
-        if publication_date is not None:
-            resource['published'] = publication_date
-    for field in _RESOURCE_HASH_FIELDS:
-        if getattr(args, field) is not None:
-            resource['checksum'] = {'type': field, 'value': getattr(args, field)}
-            break
+    resource.update(parse_resource_fields(args))
     submission = requests.post(f"{_API_URL}datasets/{args.dataset_id}/resources/", headers=auth, json=resource)
     if submission.status_code == 201:
-        print('Resource successfully added to the given dataset')
+        print(f'Resource successfully added to the given dataset.\n{json.dumps(submission.json(), indent=4)}')
     else:
-        print(f'Error while submitting your resource:\n - Status code:{submission.status_code}\n - Reason: {submission.reason}\n - Raw text: {submission.text}')
-    
-    
+        print(f'Error while submitting your resource:\n{display_error(submission)}')
+
+
+def update_resource(args):
+    auth = {'X-API-KEY': args.auth}
+    resource = requests.get(f"{_API_URL}datasets/{args.dataset_id}/resources/{args.resource_id}/")
+    if resource.status_code != 200:
+        print(f"Error while fetching the information of the resource to update:\n{display_error(resource)}")
+        return
+    resource = resource.json()
+    for field in _RESOURCE_UPDATE_FIELDS:
+        feature = getattr(args, field)
+        if feature is not None:
+            resource[field] = feature
+    resource.update(parse_resource_fields(args))
+    update = requests.put(f"{_API_URL}datasets/{args.dataset_id}/resources/{args.resource_id}/", headers=auth, json=resource)
+    if update.status_code == 200:
+        print(f'Resource  successfully updated.\n{json.dumps(update.json(), indent=4)}')
+    else:
+        print(f'Error while updating your resource:\n{display_error(update)}')
 
 
 if __name__ == '__main__':
@@ -157,6 +186,24 @@ if __name__ == '__main__':
     checksum.add_argument('--sha1', help='Resource file SHA1 hash.')
     checksum.add_argument('--sha256', help='Resource file SHA256 hash.')
     submit_parser.set_defaults(func=submit_resource)
+
+    update_parser = subparsers.add_parser('update', help='Update existing resource')
+    update_parser.add_argument('--auth', required=True, help='API key.')
+    update_parser.add_argument('--dataset_id', required=True, help='Dataset ID.')
+    update_parser.add_argument('--resource_id', required=True, help='Resource ID.')
+    update_parser.add_argument('--title', help='Resource title to update.')
+    update_parser.add_argument('--type', choices=_RESOURCE_TYPES, help='Resource type to update.')
+    update_parser.add_argument('--url', help='Resource URL to update.')
+    update_parser.add_argument('--format', help='Resource format to update.')
+    update_parser.add_argument('--description', help='Resource description to update.')
+    update_parser.add_argument('--publication_date', help='Publication date to update.')
+    update_parser.add_argument('--filesize', type=int, help='Resource file size to update.')
+    update_parser.add_argument('--mime_type', help='Resource mime type to update')
+    checksum = update_parser.add_mutually_exclusive_group()
+    checksum.add_argument('--md5', help='Resource file MD5 to update.')
+    checksum.add_argument('--sha1', help='Resource file SHA1 to update.')
+    checksum.add_argument('--sha256', help='Resource file SHA256 to update.')
+    update_parser.set_defaults(func=update_resource)
 
     search_parser = subparsers.add_parser('search', help='Search for a dataset.')
     dataset_identifier = search_parser.add_mutually_exclusive_group(required=True)
