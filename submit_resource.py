@@ -169,7 +169,7 @@ def update_resource(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Submit resources on data.public.lu')
     subparsers = parser.add_subparsers()
-    
+
     submit_parser = subparsers.add_parser('submit', help='Submit a resource.')
     submit_parser.add_argument('--auth', required=True, help='API key.')
     submit_parser.add_argument('--dataset_id', required=True, help='Dataset ID.')
@@ -217,5 +217,9 @@ if __name__ == '__main__':
     search_parser.set_defaults(func=search_dataset)
 
     args = parser.parse_args()
-    args.func(args)
+    try:
+        args.func(args)
+    except:
+        parser.print_help()
+        parser.exit()
 
